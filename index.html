@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4A90E2">
+    <title>Quiz Pro PWA</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png"> 
+</head>
+<body>
+
+    <header>
+        <h1>Quiz Pro - اپلیکیشن کوییز</h1>
+    </header>
+    
+    <main id="app-container">
+        
+        <section id="quiz-selection" class="active">
+            <h2>کوییز‌های موجود</h2>
+            <ul id="quiz-list">
+                </ul>
+            <button id="create-quiz-btn">ساخت کوییز جدید</button>
+        </section>
+
+        <section id="quiz-creator" style="display:none;">
+            <h2>ایجاد کوییز جدید</h2>
+            <input type="text" id="quiz-title" placeholder="عنوان کوییز (مثلاً فیزیک ۱)">
+            <div id="questions-container">
+                </div>
+            <button id="add-question-btn">➕ افزودن سوال</button>
+            <hr>
+            <button id="save-quiz-btn">✅ ذخیره کوییز</button>
+            <button onclick="showSection('quiz-selection')">بازگشت</button>
+        </section>
+
+        <section id="quiz-taker" style="display:none;">
+            <h2 id="current-quiz-title"></h2>
+            <div id="quiz-questions">
+                </div>
+            <button id="submit-quiz-btn" style="display:none;">📝 اتمام و مشاهده نتیجه</button>
+        </section>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

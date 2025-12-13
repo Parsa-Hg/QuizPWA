@@ -1,0 +1,85 @@
+body {
+    font-family: Tahoma, Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+
+header {
+    background-color: #4A90E2;
+    color: white;
+    padding: 1rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+main {
+    padding: 20px;
+    max-width: 600px;
+    margin: auto;
+    text-align: right; /* برای راستچین کردن محتوا */
+}
+
+/* استایل‌های عمومی فرم */
+input[type="text"], textarea {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button {
+    padding: 10px 20px;
+    margin: 5px;
+    background-color: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* لیست کوییزها در صفحه اصلی */
+#quiz-list {
+    list-style: none;
+    padding: 0;
+}
+
+#quiz-list li {
+    background: white;
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#quiz-list li:hover {
+    background-color: #e9e9e9;
+}
+
+/* بلوک‌های سوال در بخش ساخت کوییز */
+.question-block {
+    background: white;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    border-right: 5px solid #4A90E2;
+}
+
+/* بخش حل کوییز */
+.quiz-question {
+    margin-bottom: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: right;
+}
+
+.quiz-question label {
+    display: block;
+    padding: 5px 0;
+    cursor: pointer;
+}

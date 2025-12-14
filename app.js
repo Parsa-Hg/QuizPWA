@@ -1,32 +1,76 @@
-// ۱. ثبت Service Worker (برای فعال‌سازی PWA)
+// ۱. اتصال به Firebase و Firestore
+// تنظیمات پیکربندی شما:
+const firebaseConfig = {
+  apiKey: "AIzaSyBgCQ26Jm0Y8YoW4_nsGotLBmLmu3YgvTo",
+  authDomain: "quizpro-shared.firebaseapp.com",
+  projectId: "quizpro-shared",
+  storageBucket: "quizpro-shared.firebasestorage.app",
+  messagingSenderId: "241131574728",
+  appId: "1:241131574728:web:cb14df6ff5c61658a45cfd"
+};
+
+// مقداردهی اولیه Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const db = app.firestore(); // شیء اتصال به دیتابیس Firestore (دیتابیس مشترک)
+
+// ۲. ثبت Service Worker (بدون تغییر)
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
         .then(() => console.log('سرویس ورکر ثبت شد'))
         .catch((err) => console.log('خطا در ثبت سرویس ورکر:', err));
 }
 
-// ۲. توابع کمکی برای ذخیره‌سازی داده‌ها (LocalStorage)
-const getQuizzes = () => JSON.parse(localStorage.getItem('quizzes')) || [];
-const saveQuizzes = (quizzes) => localStorage.setItem('quizzes', JSON.stringify(quizzes));
+// ۳. توابع مدیریت داده‌ها (فراخوانی دیتابیس آنلاین)
+// این تابع تمام کوییزها را از سرور می‌خواند
+const getQuizzes = async () => {
+    try {
+        const snapshot = await db.collection("quizzes").get();
+        const quizzes = [];
+        snapshot.forEach(doc => {
+            // هر کوییز را به همراه شناسه (ID) آن ذخیره می‌کنیم
+            quizzes.push({ id: doc.id, ...doc.data() });
+        });
+        return quizzes;
+    } catch (error) {
+        console.error("خطا در خواندن کوییزها از فایربیس:", error);
+        return [];
+    }
+};
 
-// ۳. تابع جابجایی بین بخش‌های HTML
+// این تابع یک کوییز جدید را در سرور ذخیره می‌کند
+const saveQuiz = async (quizData) => {
+    try {
+        // افزودن کوییز به مجموعه 'quizzes' در Firestore
+        await db.collection("quizzes").add(quizData);
+        return true;
+    } catch (error) {
+        console.error("خطا در ذخیره کوییز در فایربیس:", error);
+        return false;
+    }
+};
+
+
+// ۴. تابع جابجایی بین بخش‌های HTML (بدون تغییر)
 const showSection = (id) => {
     document.querySelectorAll('section').forEach(sec => sec.style.display = 'none');
     document.getElementById(id).style.display = 'block';
 };
 
-let currentQuizId = null;
+let currentQuizId = null; 
 
-// ۴. رندر لیست کوییزها در صفحه اصلی
-const renderQuizList = () => {
+// ۵. رندر لیست کوییزها در صفحه اصلی (با استفاده از داده‌های آنلاین)
+const renderQuizList = async () => {
     const quizList = document.getElementById('quiz-list');
     quizList.innerHTML = '';
-    const quizzes = getQuizzes();
+    
+    // خواندن کوییزها از دیتابیس
+    const quizzes = await getQuizzes(); 
 
     quizzes.forEach((quiz, index) => {
         const li = document.createElement('li');
         li.textContent = quiz.title;
-        li.onclick = () => startQuiz(index); 
+        // حالا برای شروع کوییز، از ID دیتابیس استفاده می‌کنیم
+        li.onclick = () => startQuiz(quiz.id); 
         quizList.appendChild(li);
     });
     
@@ -35,7 +79,7 @@ const renderQuizList = () => {
     }
 };
 
-// ۵. مدیریت بخش ساخت کوییز
+// ۶. مدیریت بخش ساخت کوییز
 document.getElementById('create-quiz-btn').addEventListener('click', () => {
     showSection('quiz-creator');
     document.getElementById('quiz-title').value = '';
@@ -44,6 +88,7 @@ document.getElementById('create-quiz-btn').addEventListener('click', () => {
 });
 
 const addQuestionField = () => {
+    // منطق ایجاد فیلدهای سوال
     const container = document.getElementById('questions-container');
     const qIndex = container.children.length;
 
@@ -62,7 +107,7 @@ const addQuestionField = () => {
 
 document.getElementById('add-question-btn').addEventListener('click', addQuestionField);
 
-document.getElementById('save-quiz-btn').addEventListener('click', () => {
+document.getElementById('save-quiz-btn').addEventListener('click', async () => {
     const title = document.getElementById('quiz-title').value.trim();
     if (!title) {
         alert('لطفا عنوان کوییز را وارد کنید.');
@@ -84,22 +129,31 @@ document.getElementById('save-quiz-btn').addEventListener('click', () => {
     }
 
     if (newQuiz.questions.length > 0) {
-        const quizzes = getQuizzes();
-        quizzes.push(newQuiz);
-        saveQuizzes(quizzes);
-        alert(`کوییز "${title}" ذخیره شد!`);
-        showSection('quiz-selection');
-        renderQuizList();
+        // ذخیره آنلاین در Firebase
+        const saved = await saveQuiz(newQuiz);
+        if (saved) {
+            alert(`کوییز "${title}" با موفقیت ذخیره و عمومی شد!`);
+            showSection('quiz-selection');
+            renderQuizList();
+        } else {
+            alert('خطا در ذخیره کوییز در سرور.');
+        }
     } else {
         alert('لطفاً حداقل یک سوال معتبر و کامل اضافه کنید.');
     }
 });
 
-// ۶. منطق شروع و حل کوییز (دانش‌آموز)
-const startQuiz = (index) => {
-    currentQuizId = index;
-    const quizzes = getQuizzes();
-    const quiz = quizzes[index];
+// ۷. منطق شروع و حل کوییز (به روز شده برای خواندن از Firebase)
+const startQuiz = async (quizId) => {
+    currentQuizId = quizId;
+    
+    // خواندن کوییز مورد نظر از دیتابیس با استفاده از ID
+    const doc = await db.collection("quizzes").doc(quizId).get();
+    if (!doc.exists) {
+        alert("کوییز پیدا نشد.");
+        return;
+    }
+    const quiz = doc.data();
 
     document.getElementById('current-quiz-title').textContent = `شروع کوییز: ${quiz.title}`;
     const questionsDiv = document.getElementById('quiz-questions');
@@ -111,7 +165,6 @@ const startQuiz = (index) => {
         qElement.innerHTML = `<h4>${qIndex + 1}. ${q.text}</h4>`;
         
         q.options.forEach(optionText => {
-            // استخراج حرف گزینه (A, B, C...) و متن گزینه
             const match = optionText.match(/^([A-Za-z0-9]+):\s*(.*)/) || optionText.match(/^([A-Za-z0-9]+)\.\s*(.*)/);
             const key = match ? match[1] : optionText.slice(0, 1);
             
@@ -127,9 +180,13 @@ const startQuiz = (index) => {
     showSection('quiz-taker');
 };
 
-document.getElementById('submit-quiz-btn').addEventListener('click', () => {
+document.getElementById('submit-quiz-btn').addEventListener('click', async () => {
     if (currentQuizId === null) return;
-    const quiz = getQuizzes()[currentQuizId];
+    
+    // دوباره کوییز را از دیتابیس می‌خوانیم 
+    const doc = await db.collection("quizzes").doc(currentQuizId).get();
+    const quiz = doc.data(); 
+    
     let score = 0;
     
     quiz.questions.forEach((q, qIndex) => {
@@ -145,6 +202,6 @@ document.getElementById('submit-quiz-btn').addEventListener('click', () => {
     showSection('quiz-selection');
 });
 
-// اجرای اولیه برنامه
+// ۸. اجرای اولیه برنامه
 renderQuizList();
 showSection('quiz-selection');

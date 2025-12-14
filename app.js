@@ -1,5 +1,9 @@
+// =================================================================================
+// فایل app.js: اتصال به Firebase و افزودن قابلیت سؤال تصویری
+// =================================================================================
+
 // ۱. اتصال به Firebase و Firestore
-// تنظیمات پیکربندی شما:
+// تنظیمات پیکربندی شما (لطفا مطمئن شوید این کد کاملا درست باشد):
 const firebaseConfig = {
   apiKey: "AIzaSyBgCQ26Jm0Y8YoW4_nsGotLBmLmu3YgvTo",
   authDomain: "quizpro-shared.firebaseapp.com",
@@ -21,13 +25,11 @@ if ('serviceWorker' in navigator) {
 }
 
 // ۳. توابع مدیریت داده‌ها (فراخوانی دیتابیس آنلاین)
-// این تابع تمام کوییزها را از سرور می‌خواند
 const getQuizzes = async () => {
     try {
         const snapshot = await db.collection("quizzes").get();
         const quizzes = [];
         snapshot.forEach(doc => {
-            // هر کوییز را به همراه شناسه (ID) آن ذخیره می‌کنیم
             quizzes.push({ id: doc.id, ...doc.data() });
         });
         return quizzes;
@@ -37,10 +39,8 @@ const getQuizzes = async () => {
     }
 };
 
-// این تابع یک کوییز جدید را در سرور ذخیره می‌کند
 const saveQuiz = async (quizData) => {
     try {
-        // افزودن کوییز به مجموعه 'quizzes' در Firestore
         await db.collection("quizzes").add(quizData);
         return true;
     } catch (error) {
@@ -48,7 +48,6 @@ const saveQuiz = async (quizData) => {
         return false;
     }
 };
-
 
 // ۴. تابع جابجایی بین بخش‌های HTML (بدون تغییر)
 const showSection = (id) => {
@@ -58,18 +57,16 @@ const showSection = (id) => {
 
 let currentQuizId = null; 
 
-// ۵. رندر لیست کوییزها در صفحه اصلی (با استفاده از داده‌های آنلاین)
+// ۵. رندر لیست کوییزها در صفحه اصلی
 const renderQuizList = async () => {
     const quizList = document.getElementById('quiz-list');
     quizList.innerHTML = '';
     
-    // خواندن کوییزها از دیتابیس
     const quizzes = await getQuizzes(); 
 
     quizzes.forEach((quiz, index) => {
         const li = document.createElement('li');
         li.textContent = quiz.title;
-        // حالا برای شروع کوییز، از ID دیتابیس استفاده می‌کنیم
         li.onclick = () => startQuiz(quiz.id); 
         quizList.appendChild(li);
     });
@@ -87,8 +84,10 @@ document.getElementById('create-quiz-btn').addEventListener('click', () => {
     addQuestionField(); 
 });
 
+// ************************************************
+// تابع به‌روز شده: اضافه کردن فیلد لینک عکس (URL)
+// ************************************************
 const addQuestionField = () => {
-    // منطق ایجاد فیلدهای سوال
     const container = document.getElementById('questions-container');
     const qIndex = container.children.length;
 
@@ -97,16 +96,22 @@ const addQuestionField = () => {
     questionDiv.innerHTML = `
         <hr>
         <h4>سوال #${qIndex + 1}</h4>
-        <input type="text" id="q-text-${qIndex}" placeholder="متن سوال (مثلاً پایتخت ایران کجاست؟)">
+        
+        <input type="url" id="q-image-${qIndex}" placeholder="لینک عکس سوال (اختیاری، با https)">
+        
+        <input type="text" id="q-text-${qIndex}" placeholder="متن سوال (اختیاری، در کنار عکس)">
         <input type="text" id="q-correct-${qIndex}" placeholder="حرف گزینه صحیح (مثلاً A)">
         <p>گزینه‌ها:</p>
-        <textarea id="q-options-${qIndex}" rows="4" placeholder="A: تهران\nB: اصفهان\nC: شیراز\n..."></textarea>
+        <textarea id="q-options-${qIndex}" rows="4" placeholder="A: گزینه اول\nB: گزینه دوم\nC: گزینه سوم\n..."></textarea>
     `;
     container.appendChild(questionDiv);
 };
 
 document.getElementById('add-question-btn').addEventListener('click', addQuestionField);
 
+// ************************************************
+// تابع به‌روز شده: ذخیره لینک عکس در Firebase
+// ************************************************
 document.getElementById('save-quiz-btn').addEventListener('click', async () => {
     const title = document.getElementById('quiz-title').value.trim();
     if (!title) {
@@ -121,15 +126,18 @@ document.getElementById('save-quiz-btn').addEventListener('click', async () => {
         const text = document.getElementById(`q-text-${i}`).value.trim();
         const correct = document.getElementById(`q-correct-${i}`).value.trim();
         const optionsText = document.getElementById(`q-options-${i}`).value.trim();
+        
+        // خواندن فیلد جدید لینک عکس
+        const imageUrl = document.getElementById(`q-image-${i}`).value.trim(); 
 
-        if (text && correct && optionsText) {
+        if ((text || imageUrl) && correct && optionsText) {
             const options = optionsText.split('\n').filter(o => o.trim() !== '');
-            newQuiz.questions.push({ text, correct: correct.toUpperCase(), options });
+            // اضافه کردن imageUrl به شیء سوال
+            newQuiz.questions.push({ text, imageUrl, correct: correct.toUpperCase(), options });
         }
     }
 
     if (newQuiz.questions.length > 0) {
-        // ذخیره آنلاین در Firebase
         const saved = await saveQuiz(newQuiz);
         if (saved) {
             alert(`کوییز "${title}" با موفقیت ذخیره و عمومی شد!`);
@@ -143,11 +151,13 @@ document.getElementById('save-quiz-btn').addEventListener('click', async () => {
     }
 });
 
-// ۷. منطق شروع و حل کوییز (به روز شده برای خواندن از Firebase)
+// ۷. منطق شروع و حل کوییز
+// ************************************************
+// تابع به‌روز شده: نمایش عکس سوال (اگر وجود داشت)
+// ************************************************
 const startQuiz = async (quizId) => {
     currentQuizId = quizId;
     
-    // خواندن کوییز مورد نظر از دیتابیس با استفاده از ID
     const doc = await db.collection("quizzes").doc(quizId).get();
     if (!doc.exists) {
         alert("کوییز پیدا نشد.");
@@ -162,8 +172,20 @@ const startQuiz = async (quizId) => {
     quiz.questions.forEach((q, qIndex) => {
         const qElement = document.createElement('div');
         qElement.className = 'quiz-question';
-        qElement.innerHTML = `<h4>${qIndex + 1}. ${q.text}</h4>`;
         
+        // نمایش عکس اگر لینک عکس وجود داشت
+        let imageHtml = '';
+        if (q.imageUrl) {
+            // استایل‌دهی ساده برای نمایش درست تصویر در موبایل
+            imageHtml = `<img src="${q.imageUrl}" style="max-width: 100%; height: auto; margin-bottom: 15px; border-radius: 8px;" alt="تصویر سوال">`;
+        }
+        
+        qElement.innerHTML = `
+            ${imageHtml}
+            <h4>${qIndex + 1}. ${q.text}</h4>
+        `;
+        
+        // منطق نمایش گزینه‌های رادیویی
         q.options.forEach(optionText => {
             const match = optionText.match(/^([A-Za-z0-9]+):\s*(.*)/) || optionText.match(/^([A-Za-z0-9]+)\.\s*(.*)/);
             const key = match ? match[1] : optionText.slice(0, 1);
@@ -183,7 +205,6 @@ const startQuiz = async (quizId) => {
 document.getElementById('submit-quiz-btn').addEventListener('click', async () => {
     if (currentQuizId === null) return;
     
-    // دوباره کوییز را از دیتابیس می‌خوانیم 
     const doc = await db.collection("quizzes").doc(currentQuizId).get();
     const quiz = doc.data(); 
     
